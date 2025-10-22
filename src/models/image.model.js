@@ -1,7 +1,10 @@
 import mongoose from "mongoose";
 
 const imageSchema = new mongoose.Schema({
-    type: String,
+    imageFile: {
+        type: String,
+        required: true
+    },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
