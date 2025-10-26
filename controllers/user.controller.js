@@ -63,4 +63,34 @@ const registerUser = async (req, res) => {
     }
 }
 
-export {registerUser};
+const loginUser = async (req, res) => {
+    const {email, username, password} = req.body;
+
+    if(!email && !username){
+        return res.status(400).json(
+            {error: "email or username is required to login"}
+        )
+    }
+
+    const present = await User.findOne({
+        $or : [{email}, {username}]
+    });
+    if(!present){
+        return res.status(404).json(
+            {error: "invalid username/email"}
+        )
+    }
+
+    const actualUser = present.isPasswordCorrect(password);
+    if(!actualUser){
+        return res.status(401).json({
+            error: "invalid password"
+        })
+    }
+
+    return res.status(200).json(
+        {message: "login successful"}
+    )
+}
+
+export {registerUser, loginUser};
