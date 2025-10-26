@@ -1,9 +1,16 @@
+import { User } from "../src/models/user.model.js";
+
 const registerUser = async (req, res) => {
     try {
         const {username, email, password, name} = req.body;
+        console.log(username)
+        console.log(email)
+        console.log(password)
+        console.log(name)
 
+        //validate user details
         const missing = [username, email, password, name].some(
-            (field) => !field || (typeof field === string && field.trim() === "")
+            (field) => !field || (typeof field === "string" && field.trim() === "")
         );
 
         if(missing){
@@ -11,7 +18,39 @@ const registerUser = async (req, res) => {
                 {error: "All fields are required."}
             );
         }
+        
+        //find existing user if present
+        const existingUser = await User.findOne({
+            $or : [{email}, {username}]
+        });
 
+        if(existingUser){
+            return res.status(409).json(
+                {error: "Already Existing username or email"}
+            )
+        }
+        
+        const user = await User.create({
+            username: username.toLowerCase(),
+            email: email,
+            name: name,
+            password: password
+        })
+
+        const createdUser = await User.findById(user._id).select(
+            "-password -refreshToken"
+        )
+
+        if(!createdUser){
+            return res.status(500).json(
+                {error: "error occured while creating the user"}
+            )
+        }
+
+        return res.status(200).json({
+                    message: "User registered successfully",
+                    user: createdUser,
+                    });
 
     } catch (error) {
         console.log(error);
