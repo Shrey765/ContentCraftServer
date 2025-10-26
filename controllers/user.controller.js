@@ -30,6 +30,7 @@ const registerUser = async (req, res) => {
             )
         }
         
+        //create User 
         const user = await User.create({
             username: username.toLowerCase(),
             email: email,
@@ -37,6 +38,7 @@ const registerUser = async (req, res) => {
             password: password
         })
 
+        //check if user is created or not 
         const createdUser = await User.findById(user._id).select(
             "-password -refreshToken"
         )
@@ -47,6 +49,7 @@ const registerUser = async (req, res) => {
             )
         }
 
+        //return the success respoce
         return res.status(200).json({
                     message: "User registered successfully",
                     user: createdUser,
