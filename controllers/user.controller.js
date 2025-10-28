@@ -5,6 +5,7 @@ const generateAccessAndRefreshToken = async (userId) => {
         const user = await User.findById(userId);
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
+        user.refreshToken = refreshToken;
         await user.save({validateBeforeSave: false});
 
         return {accessToken, refreshToken};
@@ -82,7 +83,7 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     const {email, username, password} = req.body;
 
-    if(!email || !username){
+    if(!(username || email)){
         return res.status(400).json(
             {error: "email or username is required to login"}
         )
@@ -91,13 +92,16 @@ const loginUser = async (req, res) => {
     const present = await User.findOne({
         $or : [{email}, {username}]
     });
+
     if(!present){
         return res.status(404).json(
             {error: "invalid username/email"}
         )
     }
 
-    const actualUser = present.isPasswordCorrect(password);
+    console.log(password)
+
+    const actualUser = await present.isPasswordCorrect(password);
     if(!actualUser){
         return res.status(401).json({
             error: "invalid password"
@@ -105,7 +109,7 @@ const loginUser = async (req, res) => {
     }
 
     //generateAccessAndRefreshToken
-    const {accessToken, refreshToken} = generateAccessAndRefreshToken(present._id)
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(present._id)
 
     const loggedInUser = await User.findById(present._id).select(
         "-password -refreshToken"
@@ -120,10 +124,12 @@ const loginUser = async (req, res) => {
     .status(200)
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)
-    .json(
-        {user: loggedInUser, accessToken, refreshToken},
-        {message: "User logged in Successfully"}
-    )
+    .json({
+        user: loggedInUser, 
+        accessToken, 
+        refreshToken,
+        message: "User logged in Successfully"
+    })
 }
 
 const logoutUser = async (req, res) => {
