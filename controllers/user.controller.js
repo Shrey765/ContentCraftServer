@@ -1,4 +1,5 @@
 import { User } from "../src/models/user.model.js";
+import jwt from 'jsonwebtoken'
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -136,7 +137,7 @@ const logoutUser = async (req, res) => {
     const id = req.user._id;
 
     const user = User.findByIdAndUpdate(
-        req.user._id,
+        id,
         {
             $set: {refreshToken: undefined,}
         },
@@ -158,4 +159,55 @@ const logoutUser = async (req, res) => {
 
 }
 
-export {registerUser, loginUser, logoutUser};
+const refreshAccessToken = async (req, res) => {
+    const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    console.log(incommingRefreshToken)
+
+    if(!incommingRefreshToken){
+        return res.status(401).json(
+            {message: "unauthorized request"}
+        )
+    }
+
+    const decodedToken = jwt.verify(
+        incommingRefreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+    )    
+
+    const user = await User.findById(decodedToken?._id)
+
+    if(!user){
+        return res.status(401).json(
+            {message: "invalid refresh token"}
+        )
+    }
+
+    if(incommingRefreshToken !== user?.refreshToken){
+        return res.status(401).json(
+            {message: "Refresh token is expired"}
+        );
+    }
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    const {accessToken, newRefreshToken} = await generateAccessAndRefreshToken(user._id)
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
+    .json(
+        {
+           accessToken,
+           newRefreshToken,
+           message: "access token is refreshed"
+        }
+    )
+}
+
+
+
+export {registerUser, loginUser, logoutUser, refreshAccessToken};
