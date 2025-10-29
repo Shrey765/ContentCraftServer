@@ -50,7 +50,7 @@ const registerUser = async (req, res) => {
         }
 
         //file upload
-        const localFilePath = req.files?.avatar[0]?.path;
+        const localFilePath = req.file?.avatar?.path;
         console.log(localFilePath);
 
         if(!localFilePath){
@@ -223,6 +223,126 @@ const refreshAccessToken = async (req, res) => {
     )
 }
 
+const updatePassword = async (req, res) => {
+    const id = req.user._id;
+    const {newPassword} = req.body;
 
+    if(!newPassword || typeof newPassword !== "string" || newPassword.trim() === ""){
+        return res
+        .status(400)
+        .json(
+            {error: "new password is not valid or given"}
+        )
+    }
 
-export {registerUser, loginUser, logoutUser, refreshAccessToken};
+    const user = await User.findById(id)
+    if(!user){
+        return res
+        .status(404)
+        .json(
+            {error: "User not found"}
+        );
+    }
+
+    user.password = newPassword;
+    await user.save({validateBeforeSave: false});
+
+    return res
+    .status(400)
+    .json(
+        {message: "password is updated"}
+    )
+}
+
+const editDetails = async (req, res) => {
+    try {
+        const {name, email, username} = req.body;
+        const id = req.user._id;
+    
+        if(!name && !email && !username){
+            return res
+            .status(500)
+            .json({message: "no value given to update"})
+        }
+    
+        const user = await User.findById(id);
+        
+        if(name){
+            user.name = name;
+        }
+    
+        if(email){
+            const exists = await User.findOne({ email, _id: { $ne: id } });
+            if (exists) return res.status(409).json({ error: "Email already in use" });
+        }
+    
+        if(username){
+            const exists = await User.findOne({ username, _id: { $ne: id } });
+            if (exists) return res.status(409).json({ error: "Username already in use" });
+        }
+        const update={}
+        if (name) update.name = name;
+        if (email) update.email = email;
+        if (username) update.username = username;
+    
+        const updated = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
+          .select("-password -refreshToken");
+    
+        return res
+        .status(200)
+        .json({
+            message: "user details are updated",
+            user: updated
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ error: "Server error while updating details" });
+    }
+}
+
+const updateAvatar = async (req, res) => {
+    try {
+        const localFilePath = req.file?.avatar?.path;
+    
+        if(!localFilePath){
+            return res
+            .status(400)
+            .json(
+                {message: "localFile path missing!!"}
+            );
+        }
+    
+        const avatar = await uploadOnCloudinary(localFilePath);
+    
+        if(!avatar){
+            return res
+            .status(500)
+            .json({message: "Error while udating avatar image"})
+        }
+    
+        const user = await User.findByIdAndUpdate(req.user?._id,
+            {
+                $set: {avatar: avatar ? avatar.url : ""}
+            },
+            {new: true}
+        ).select("-password -refreshToken");
+    
+    
+        return res
+        .status(200)
+        .json({
+            message: "avatar image updated",
+            avatar: user.avatar,
+            user
+        });
+    } catch (error) {
+        console.log(error);
+        return res
+        .status(500)
+        .json({
+            error: "Server error while upddating avatar"
+        });
+    }
+};
+
+export {registerUser, loginUser, logoutUser, refreshAccessToken, updatePassword, updateAvatar, editDetails};
