@@ -1,4 +1,5 @@
 import {v2 as cloudinary} from 'cloudinary'
+import fs from 'fs'
 
 cloudinary.config({
     cloud_name: process.env.CLOUD_NAME,
@@ -6,12 +7,12 @@ cloudinary.config({
     api_secret: process.env.CLOUD_API_SECRET
 });
 
-const uploadOnCloudinary = async (imageUrl) => {
+const uploadOnCloudinary = async (localFilePath) => {
     try {
-        if(!imageUrl) return null;
+        if(!localFilePath) return null;
 
-        const response = await cloudinary.uploader(imageUrl, {
-            resource_type: "auto"
+        const response = await cloudinary.uploader.upload(localFilePath, {
+            resource_type: "image"
         })
 
         console.log("file is uploaded on cloudinary!");
@@ -19,8 +20,8 @@ const uploadOnCloudinary = async (imageUrl) => {
 
         return response;
     } catch (error) {
+        fs.unlinkSync(localFilePath)
         console.log("Error occured during image upload !", error)
-
         return null;
     }
 }

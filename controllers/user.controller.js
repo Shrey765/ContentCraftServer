@@ -1,5 +1,6 @@
 import { User } from "../src/models/user.model.js";
 import jwt from 'jsonwebtoken'
+import uploadOnCloudinary from "../src/services/cloudinary.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -47,13 +48,27 @@ const registerUser = async (req, res) => {
                 {error: "Already Existing username or email"}
             )
         }
+
+        //file upload
+        const localFilePath = req.files?.avatar[0]?.path;
+        console.log(localFilePath);
+
+        if(!localFilePath){
+            console.log("avatar image is not uploaded");
+        }
+
+        const imageUrl = localFilePath ? await uploadOnCloudinary(localFilePath) : "";
+        if(!imageUrl){
+            console.log("cloudinary didn't responded with the image url")
+        }
         
         //create User 
         const user = await User.create({
             username: username.toLowerCase(),
             email: email,
             name: name,
-            password: password
+            password: password,
+            avatar: imageUrl?.url || "",
         })
 
         //check if user is created or not 
